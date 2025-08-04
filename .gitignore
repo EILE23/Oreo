@@ -1,0 +1,17 @@
+# Node modules
+node_modules/
+
+# TypeScript build output
+dist/
+
+# SQLite DB 파일
+db/*.db
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# OS/System files
+.DS_Store
+Thumbs.db
