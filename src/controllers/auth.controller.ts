@@ -33,6 +33,7 @@ export const login = async (req: Request, res: Response) => {
 };
 
 export const getMe = async (req: AuthRequest, res: Response) => {
-  if (!req.user) return res.status(401).json({ message: "로그인 필요" });
+  if (!req.user)
+    return res.status(401).json({ message: "로그인이 필요합니다." });
   return res.json({ user: req.user });
 };
