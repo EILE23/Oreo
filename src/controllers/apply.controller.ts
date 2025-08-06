@@ -26,10 +26,12 @@ export const applyToClass = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ message: "Class is full" });
     }
 
+    console.log("중복 신청 확인 - class:", classEntity.id, "user:", user.id);
     const existing = await DI.em.findOne(Apply, {
       class: classEntity,
       user: user,
     });
+    console.log("중복 신청 여부:", existing);
     if (existing) return res.status(409).json({ message: "Already applied" });
 
     const apply = new Apply();

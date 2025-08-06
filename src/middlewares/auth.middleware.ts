@@ -3,7 +3,7 @@ import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 
 // 환경변수에서 JWT 비밀키 가져오고, 없으면 기본값 사용
-const JWT_SECRET = process.env.JWT_SECRET || "oreo_secret_key";
+const JWT_SECRET = process.env.JWT_SECRET || "oreoASDFASDFZXCVZCVX";
 
 // 확장된 Request 타입 정의: req.user 사용을 위해
 export interface AuthRequest extends Request {
@@ -33,12 +33,13 @@ export const authenticate = (
       id: number;
       role: string;
     };
-
+    console.log("Decoded JWT:", decoded);
     // 검증 성공 시 req.user에 저장해서 다음 미들웨어/컨트롤러에서 사용 가능
     req.user = decoded;
     next(); // 다음 미들웨어로 진행
   } catch (err) {
     // 토큰 검증 실패
+    console.error("JWT Verify Error:", err);
     return res.status(401).json({ message: "토큰이 유효하지 않습니다." });
   }
 };

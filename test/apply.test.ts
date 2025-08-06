@@ -1,19 +1,17 @@
 // tests/apply.test.ts
 import request from "supertest";
-import { setupApp } from "./appSetup"; // 초기화 함수 import
-import { MikroORM } from "@mikro-orm/core";
-import testConfig from "../src/mikro-orm.test.config";
+import { setupApp, getOrm } from "./appSetup";
 import { User } from "../src/entities/User";
 import { Class } from "../src/entities/Class";
 import { Apply } from "../src/entities/Apply";
 import jwt from "jsonwebtoken";
-import express from "express";
 import { Express } from "express";
+import { MikroORM } from "@mikro-orm/core";
+
+let app: Express;
+let testOrm: MikroORM;
 
 const JWT_SECRET = process.env.JWT_SECRET || "oreo_secret_key";
-
-let testOrm: MikroORM;
-let app: Express;
 
 describe("POST /api/classes/:id/apply", () => {
   let token: string;
@@ -21,14 +19,19 @@ describe("POST /api/classes/:id/apply", () => {
   let testClass: Class;
 
   beforeAll(async () => {
-    // MikroORM 초기화 및 스키마 생성
-    testOrm = await MikroORM.init(testConfig);
-    const generator = testOrm.getSchemaGenerator();
-    await generator.updateSchema();
+    app = await setupApp();
+    testOrm = getOrm();
+  });
 
+  beforeEach(async () => {
     const em = testOrm.em.fork();
 
-    // 테스트용 유저 생성
+    // 테이블 초기화
+    await em.nativeDelete(Apply, {});
+    await em.nativeDelete(Class, {});
+    await em.nativeDelete(User, {});
+
+    // 유저 생성
     testUser = em.create(User, {
       email: "test@example.com",
       password: "hashedpw",
@@ -39,21 +42,17 @@ describe("POST /api/classes/:id/apply", () => {
     });
     await em.persistAndFlush(testUser);
 
-    // JWT 토큰 생성
     token = jwt.sign({ id: testUser.id, role: testUser.role }, JWT_SECRET);
 
-    // 테스트용 클래스 생성
+    // 클래스 생성 (maxCapacity는 2로 늘려서 여유둠)
     testClass = em.create(Class, {
       title: "테스트 강의",
       description: "설명",
       startDate: new Date(),
       endDate: new Date(),
-      maxCapacity: 1,
+      maxCapacity: 2,
     });
     await em.persistAndFlush(testClass);
-
-    // 초기화된 app 가져오기
-    app = await setupApp();
   });
 
   afterAll(async () => {
@@ -74,6 +73,10 @@ describe("POST /api/classes/:id/apply", () => {
   });
 
   it("중복 신청 방지", async () => {
+    await request(app)
+      .post(`/api/classes/${testClass.id}/apply`)
+      .set("Authorization", `Bearer ${token}`);
+
     const res = await request(app)
       .post(`/api/classes/${testClass.id}/apply`)
       .set("Authorization", `Bearer ${token}`);
@@ -99,12 +102,39 @@ describe("POST /api/classes/:id/apply", () => {
       JWT_SECRET
     );
 
-    const res = await request(app)
+    // 먼저 testUser로 강의 신청해서 1자리 차지
+    await request(app)
+      .post(`/api/classes/${testClass.id}/apply`)
+      .set("Authorization", `Bearer ${token}`);
+
+    // newUser로 신청 시도 (총 2명, maxCapacity 2라 성공해야함)
+    const res1 = await request(app)
       .post(`/api/classes/${testClass.id}/apply`)
       .set("Authorization", `Bearer ${newToken}`);
+    expect(res1.statusCode).toBe(201);
 
-    expect(res.statusCode).toBe(400);
-    expect(res.body.message).toBe("Class is full");
+    // 세번째 유저 신청 시도하면 400 나와야 함
+    const thirdUser = em.create(User, {
+      email: "test3@example.com",
+      password: "1234",
+      name: "세번째유저",
+      role: "user",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    await em.persistAndFlush(thirdUser);
+
+    const thirdToken = jwt.sign(
+      { id: thirdUser.id, role: thirdUser.role },
+      JWT_SECRET
+    );
+
+    const res2 = await request(app)
+      .post(`/api/classes/${testClass.id}/apply`)
+      .set("Authorization", `Bearer ${thirdToken}`);
+
+    expect(res2.statusCode).toBe(400);
+    expect(res2.body.message).toBe("Class is full");
   });
 
   it("없는 강의에 신청하면 404", async () => {
