@@ -1,8 +1,10 @@
 import { Router } from "express";
-import { applyToClass } from "../controllers/apply.controller";
+import { authenticate } from "../middlewares/auth.middleware";
+import { applyToClass, getMyClassApply } from "../controllers/apply.controller";
 
 const router = Router();
 
-router.post("/classes/:id/apply", applyToClass);
+router.post("/classes/:id/apply", authenticate, applyToClass);
+router.get("/applications/me", authenticate, getMyClassApply);
 
 export default router;

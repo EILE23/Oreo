@@ -13,6 +13,6 @@ export class Apply {
   @ManyToOne(() => Class)
   class!: Class; // 신청한 클래스
 
-  @Property()
-  createdAt: Date = new Date();
+  @Property({ onCreate: () => new Date() })
+  createdAt!: Date;
 }

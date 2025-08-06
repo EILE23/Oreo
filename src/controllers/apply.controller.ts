@@ -1,11 +1,15 @@
 import { Request, Response } from "express";
 import { DI } from "../mikro-orm.config";
+import { RequiredEntityData } from "@mikro-orm/core";
 import { Apply } from "../entities/Apply";
 import { Class } from "../entities/Class";
+import { User } from "../entities/User";
 
-export const applyToClass = async (req: Request, res: Response) => {
+import { AuthRequest } from "../middlewares/auth.middleware";
+
+export const applyToClass = async (req: AuthRequest, res: Response) => {
   const classId = Number(req.params.id);
-  const userId = req.user?.id; // JWT 미들웨어에서 세팅되어 있어야 함
+  const userId = req.user?.id;
 
   try {
     const classEntity = await DI.em.findOne(
@@ -16,23 +20,21 @@ export const applyToClass = async (req: Request, res: Response) => {
     if (!classEntity)
       return res.status(404).json({ message: "Class not found" });
 
-    // 정원 확인
+    const user = await DI.em.findOneOrFail(User, { id: userId });
+
     if (classEntity.applies.length >= classEntity.maxCapacity) {
       return res.status(400).json({ message: "Class is full" });
     }
 
-    // 중복 신청 방지
     const existing = await DI.em.findOne(Apply, {
       class: classEntity,
-      user: userId,
+      user: user,
     });
     if (existing) return res.status(409).json({ message: "Already applied" });
 
-    // 신청 생성
-    const apply = DI.em.create(Apply, {
-      class: classEntity,
-      user: userId,
-    });
+    const apply = new Apply();
+    apply.class = classEntity;
+    apply.user = user;
 
     await DI.em.persistAndFlush(apply);
 
@@ -40,5 +42,24 @@ export const applyToClass = async (req: Request, res: Response) => {
   } catch (err) {
     console.error(err);
     return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const getMyClassApply = async (req: AuthRequest, res: Response) => {
+  if (!req.user) {
+    return res.status(401).json({ message: "로그인이 필요합니다." });
+  }
+
+  try {
+    const appl = await DI.em.find(
+      Apply,
+      { user: req.user.id },
+      { populate: ["class"] }
+    );
+
+    return res.json(appl);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: "신청 내역 조회 중 오류 발생" });
   }
 };
