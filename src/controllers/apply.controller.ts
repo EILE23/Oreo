@@ -12,6 +12,10 @@ import { applyToInstantClassService } from "../services/apply.service";
 // 즉시 승인 신청 (유저)
 export const applyToInstantClass = async (req: AuthRequest, res: Response) => {
   const classId = Number(req.params.id);
+
+  if (Number.isNaN(classId))
+    return res.status(400).json({ message: "잘못된 클래스 ID" });
+
   const userId = req.user?.id!;
 
   try {
@@ -26,6 +30,10 @@ export const applyToInstantClass = async (req: AuthRequest, res: Response) => {
 // 신청 (유저)
 export const applyToClass = async (req: AuthRequest, res: Response) => {
   const classId = Number(req.params.id);
+
+  if (Number.isNaN(classId))
+    return res.status(400).json({ message: "잘못된 클래스 ID" });
+
   const userId = req.user?.id!;
 
   try {

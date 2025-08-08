@@ -91,7 +91,7 @@ describe("클래스 신청/승인 API", () => {
     await em.nativeDelete(Apply, {});
     await em.nativeDelete(Class, {});
     await em.nativeDelete(User, {});
-    await testOrm.close();
+    await testOrm.close(true).catch(() => {});
   });
 
   it("유저가 신청하면 PENDING 상태로 생성", async () => {
@@ -214,5 +214,58 @@ describe("클래스 신청/승인 API", () => {
 
     await em.refresh(testClass);
     expect(testClass.seatsTaken).toBe(1);
+  });
+
+  it("비관리자가 승인 시도하면 403", async () => {
+    const em = testOrm.em.fork();
+    await request(app)
+      .post(`/api/classes/${testClass.id}/apply`)
+      .set("Authorization", `Bearer ${userToken}`);
+    const apply = await em.findOneOrFail(Apply, { user: testUser });
+    const res = await request(app)
+      .post(`/api/applications/${apply.id}/approve`)
+      .set("Authorization", `Bearer ${userToken}`);
+    expect(res.status).toBe(403);
+  });
+
+  it("즉시신청 중복 방지", async () => {
+    await request(app)
+      .post(`/api/classes/${testClass.id}/apply/instant`)
+      .set("Authorization", `Bearer ${userToken}`);
+    const res = await request(app)
+      .post(`/api/classes/${testClass.id}/apply/instant`)
+      .set("Authorization", `Bearer ${userToken}`);
+    expect(res.statusCode).toBe(409);
+  });
+
+  it("즉시신청 정원 초과 방지", async () => {
+    const em = testOrm.em.fork();
+    await em.nativeUpdate(Class, { id: testClass.id }, { maxCapacity: 1 });
+    const res1 = await request(app)
+      .post(`/api/classes/${testClass.id}/apply/instant`)
+      .set("Authorization", `Bearer ${userToken}`);
+    expect(res1.status).toBe(201);
+    const another = em.create(User, {
+      email: "x@example.com",
+      password: "pw",
+      name: "x",
+      role: "user",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    await em.persistAndFlush(another);
+    const token = jwt.sign(
+      {
+        id: another.id,
+        role: another.role,
+        name: another.name,
+        email: another.email,
+      },
+      JWT_SECRET
+    );
+    const res2 = await request(app)
+      .post(`/api/classes/${testClass.id}/apply/instant`)
+      .set("Authorization", `Bearer ${token}`);
+    expect(res2.status).toBe(400);
   });
 });
