@@ -2,47 +2,129 @@
 import { DI } from "../mikro-orm.config";
 import { Class } from "../entities/Class";
 import { User } from "../entities/User";
-import { Apply } from "../entities/Apply";
-import { LockMode } from "@mikro-orm/core";
+import { Apply, ApplyStatus } from "../entities/Apply";
+import {
+  OptimisticLockError,
+  UniqueConstraintViolationException,
+} from "@mikro-orm/core";
 
+// 클래스 신청(승인제) pending 상태 관리자 승인 이후 approve
 export async function applyToClassService(classId: number, userId: number) {
-  return DI.orm.em.transactional(async (em) => {
-    // 1. 트랜잭션 내에서 EntityManager를 fork하여 별도의 작업 공간 생성
+  try {
+    return await DI.orm.em.transactional(async (em) => {
+      const cls = await em.findOne(Class, { id: classId });
+      if (!cls) return { status: 404, message: "클래스를 찾을 수 없습니다." };
 
-    const classEntity = await em.findOne(
-      Class,
-      { id: classId },
-      { populate: ["applies"], lockMode: LockMode.PESSIMISTIC_WRITE }
+      const user = await em.findOneOrFail(User, { id: userId });
+
+      // if (cls.seatsTaken >= cls.maxCapacity) {
+      //   return { status: 400, message: "정원이 가득 찼습니다." };
+      // }
+
+      // 중복 신청 방지
+      const exists = await em.findOne(Apply, { class: cls, user });
+      if (exists) {
+        return { status: 409, message: "이미 신청한 클래스입니다." };
+      }
+
+      // 신청 생성 (기본 상태: PENDING)
+      const apply = new Apply();
+      apply.class = cls;
+      apply.user = user;
+      apply.status = ApplyStatus.PENDING;
+
+      await em.persistAndFlush(apply);
+      return { status: 201, message: "신청이 완료되었습니다." };
+    });
+  } catch (e: any) {
+    if (
+      e?.code === "SQLITE_CONSTRAINT_UNIQUE" ||
+      e?.name === "UniqueConstraintViolationException"
+    ) {
+      return { status: 409, message: "이미 신청한 클래스입니다." };
+    }
+    throw e;
+  }
+}
+
+// 신청 취소
+export async function cancelApplyService(applyId: number, byAdmin = false) {
+  return await DI.orm.em.transactional(async (em) => {
+    const apply = await em.findOne(
+      Apply,
+      { id: applyId },
+      { populate: ["class"] }
     );
-    // 2. classId로 Class 엔티티 조회. 'applies' (신청자 목록)도 함께 불러오며,
-    //    PESSIMISTIC_WRITE 락을 걸어 다른 트랜잭션에서 변경하지 못하게 함
+    if (!apply) return { status: 404, message: "신청을 찾을 수 없습니다." };
 
-    if (!classEntity) return { status: 404, message: "Class not found" };
-    // 3. 클래스가 없으면 404 상태와 메시지를 리턴
+    if (apply.status === ApplyStatus.APPROVED) {
+      apply.class.seatsTaken -= 1;
+      if (apply.class.seatsTaken < 0) apply.class.seatsTaken = 0;
+    }
+
+    await em.removeAndFlush(apply);
+    return { status: 200, message: "취소 완료" };
+  });
+}
+
+// 관리자 승인
+
+export async function approveApplyService(applyId: number) {
+  return await DI.orm.em.transactional(async (em) => {
+    const apply = await em.findOne(
+      Apply,
+      { id: applyId },
+      { populate: ["class"] }
+    );
+    if (!apply) return { status: 404, message: "신청을 찾을 수 없습니다." };
+    if (apply.status === ApplyStatus.APPROVED) {
+      return { status: 400, message: "이미 승인된 신청입니다." };
+    }
+
+    const cls = apply.class;
+
+    if (cls.seatsTaken >= cls.maxCapacity) {
+      return { status: 400, message: "정원이 가득 찼습니다." };
+    }
+
+    apply.status = ApplyStatus.APPROVED;
+    cls.seatsTaken += 1;
+
+    await em.flush();
+
+    return { status: 200, message: "승인 완료" };
+  });
+}
+
+// 즉시 신청 바로 상태를 approve 상태로
+export async function applyToInstantClassService(
+  classId: number,
+  userId: number
+) {
+  return await DI.orm.em.transactional(async (em) => {
+    const cls = await em.findOne(Class, { id: classId });
+    if (!cls) return { status: 404, message: "클래스를 찾을 수 없습니다." };
+
+    if (cls.seatsTaken >= cls.maxCapacity) {
+      return { status: 400, message: "정원이 가득 찼습니다." };
+    }
 
     const user = await em.findOneOrFail(User, { id: userId });
-    // 4. userId로 User 엔티티를 조회 (없으면 에러 발생)
 
-    if (classEntity.applies.length >= classEntity.maxCapacity)
-      return { status: 400, message: "Class is full" };
-    // 5. 이미 정원이 꽉 찼으면 400 상태와 메시지 리턴
-
-    const existing = await em.findOne(Apply, {
-      class: classEntity,
-      user: user,
-    });
-    if (existing) return { status: 409, message: "Already applied" };
-    // 6. 이미 신청 기록이 있으면 409 상태와 메시지 리턴
+    const exists = await em.findOne(Apply, { class: cls, user });
+    if (exists) {
+      return { status: 409, message: "이미 신청한 클래스입니다." };
+    }
 
     const apply = new Apply();
-    apply.class = classEntity;
+    apply.class = cls;
     apply.user = user;
-    // 7. 새 신청 엔티티 생성 및 연관관계 설정
+    apply.status = ApplyStatus.APPROVED;
 
-    await em.persistAndFlush(apply);
-    // 8. DB에 신청 엔티티 저장 및 반영
+    cls.seatsTaken += 1;
 
-    return { status: 201, message: "Applied successfully" };
-    // 9. 성공적으로 신청 완료 상태와 메시지 리턴
+    await em.persistAndFlush([apply, cls]);
+
+    return { status: 201, message: "즉시 신청이 완료되었습니다." };
   });
 }

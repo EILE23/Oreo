@@ -1,13 +1,14 @@
 // 필요한 타입 및 라이브러리 import
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
+import { User } from "../entities/User";
 
 // 환경변수에서 JWT 비밀키 가져오고, 없으면 기본값 사용
 const JWT_SECRET = process.env.JWT_SECRET || "oreoASDFASDFZXCVZCVX";
 
 // 확장된 Request 타입 정의: req.user 사용을 위해
 export interface AuthRequest extends Request {
-  user?: { id: number; role: string };
+  user?: Pick<User, "id" | "role" | "name" | "email">;
 }
 
 // JWT 인증 미들웨어 함수 정의
@@ -29,13 +30,13 @@ export const authenticate = (
 
   try {
     // 토큰 검증
-    const decoded = jwt.verify(token, JWT_SECRET) as {
-      id: number;
-      role: string;
-    };
-    console.log("Decoded JWT:", decoded);
-    // 검증 성공 시 req.user에 저장해서 다음 미들웨어/컨트롤러에서 사용 가능
+    const decoded = jwt.verify(token, JWT_SECRET) as Pick<
+      User,
+      "id" | "role" | "name" | "email"
+    >;
+
     req.user = decoded;
+    // 검증 성공 시 req.user에 저장해서 다음 미들웨어/컨트롤러에서 사용 가능
     next(); // 다음 미들웨어로 진행
   } catch (err) {
     // 토큰 검증 실패

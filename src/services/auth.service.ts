@@ -34,10 +34,16 @@ export class AuthService {
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) throw new Error("이메일 또는 비밀번호가 올바르지 않습니다.");
 
-    const token = jwt.sign({ id: user.id, role: user.role }, JWT_SECRET, {
-      expiresIn: "1d",
-    });
-
+    const token = jwt.sign(
+      {
+        id: user.id,
+        role: user.role,
+        name: user.name,
+        email: user.email,
+      },
+      JWT_SECRET,
+      { expiresIn: "1d" }
+    );
     return { token, user };
   }
 }

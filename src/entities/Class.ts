@@ -1,3 +1,4 @@
+// entities/Class.ts
 import {
   Entity,
   PrimaryKey,
@@ -5,7 +6,7 @@ import {
   OneToMany,
   Collection,
 } from "@mikro-orm/core";
-import { Apply } from "./Apply"; // 유저 신청 엔티티
+import { Apply } from "./Apply";
 
 @Entity()
 export class Class {
@@ -26,6 +27,13 @@ export class Class {
 
   @Property()
   maxCapacity!: number;
+
+  // 현재까지 신청된 인원 수
+  @Property({ default: 0 })
+  seatsTaken: number = 0;
+
+  @Property({ version: true })
+  version: number = 1;
 
   @OneToMany(() => Apply, (apply: Apply) => apply.class)
   applies = new Collection<Apply>(this);

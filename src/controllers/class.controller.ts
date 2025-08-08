@@ -1,71 +1,80 @@
 // controllers/class.controller.ts
-import { Request, Response } from "express";
-import { DI } from "../mikro-orm.config";
-import { Class } from "../entities/Class";
+import { Response } from "express";
+import {
+  createClassService,
+  updateClassService,
+  deleteClassService,
+} from "../services/class.service";
+import { AuthRequest } from "../middlewares/auth.middleware";
 
-export const createClass = async (req: Request, res: Response) => {
+export const createClass = async (req: AuthRequest, res: Response) => {
   try {
+    // 관리자 권한 체크
+    if (req.user?.role !== "admin") {
+      return res.status(403).json({ message: "관리자만 접근 가능합니다." });
+    }
+
     const { title, description, startDate, endDate, maxCapacity } = req.body;
-
-    // TODO: 관리자 권한 체크 (req.user.role === 'admin')
-
-    const newClass = DI.em.create(Class, {
+    const result = await createClassService({
       title,
       description,
-      startDate: new Date(startDate),
-      endDate: new Date(endDate),
+      startDate,
+      endDate,
       maxCapacity: Number(maxCapacity),
     });
 
-    await DI.em.persistAndFlush(newClass);
-    return res.status(201).json(newClass);
+    if ("message" in result) {
+      return res.status(result.status).json({ message: result.message });
+    }
+    return res.status(result.status).json(result.data);
   } catch (err) {
     console.error(err);
-    return res.status(500).json({ message: "Internal server error" });
+    return res.status(500).json({ message: "서버 오류가 발생했습니다." });
   }
 };
 
-export const updateClass = async (req: Request, res: Response) => {
-  const classId = Number(req.params.id);
-  const { title, description, startDate, endDate, maxCapacity } = req.body;
-
+export const updateClass = async (req: AuthRequest, res: Response) => {
   try {
-    const classEntity = await DI.em.findOne(Class, { id: classId });
-    if (!classEntity) {
-      return res.status(404).json({ message: "클래스를 찾을 수 없습니다." });
+    if (req.user?.role !== "admin") {
+      return res.status(403).json({ message: "관리자만 접근 가능합니다." });
     }
 
-    classEntity.title = title ?? classEntity.title;
-    classEntity.description = description ?? classEntity.description;
-    classEntity.startDate = startDate
-      ? new Date(startDate)
-      : classEntity.startDate;
-    classEntity.endDate = endDate ? new Date(endDate) : classEntity.endDate;
-    classEntity.maxCapacity = maxCapacity ?? classEntity.maxCapacity;
+    const classId = Number(req.params.id);
+    const { title, description, startDate, endDate, maxCapacity } = req.body;
 
-    await DI.em.flush();
+    const result = await updateClassService(classId, {
+      title,
+      description,
+      startDate,
+      endDate,
+      maxCapacity: maxCapacity !== undefined ? Number(maxCapacity) : undefined,
+    });
 
-    return res.json(classEntity);
+    if ("message" in result) {
+      return res.status(result.status).json({ message: result.message });
+    }
+    return res.status(result.status).json(result.data);
   } catch (err) {
     console.error(err);
-    return res.status(500).json({ message: "Internal server error" });
+    return res.status(500).json({ message: "서버 오류가 발생했습니다." });
   }
 };
 
-export const deleteClass = async (req: Request, res: Response) => {
-  const classId = Number(req.params.id);
-
+export const deleteClass = async (req: AuthRequest, res: Response) => {
   try {
-    const classEntity = await DI.em.findOne(Class, { id: classId });
-    if (!classEntity) {
-      return res.status(404).json({ message: "클래스를 찾을 수 없습니다." });
+    if (req.user?.role !== "admin") {
+      return res.status(403).json({ message: "관리자만 접근 가능합니다." });
     }
 
-    await DI.em.removeAndFlush(classEntity);
+    const classId = Number(req.params.id);
+    const result = await deleteClassService(classId);
 
-    return res.status(204).send(); // 성공, 내용 없음
+    if ("message" in result) {
+      return res.status(result.status).json({ message: result.message });
+    }
+    return res.status(result.status).send(); // 204
   } catch (err) {
     console.error(err);
-    return res.status(500).json({ message: "Internal server error" });
+    return res.status(500).json({ message: "서버 오류가 발생했습니다." });
   }
 };

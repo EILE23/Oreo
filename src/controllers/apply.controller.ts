@@ -1,41 +1,98 @@
-import { Request, Response } from "express";
-import { DI } from "../mikro-orm.config";
-import { RequiredEntityData } from "@mikro-orm/core";
-import { Apply } from "../entities/Apply";
-import { Class } from "../entities/Class";
-import { User } from "../entities/User";
-import { LockMode } from "@mikro-orm/core";
-import { applyQueue } from "../utils/queue";
+import { Response } from "express";
 import { AuthRequest } from "../middlewares/auth.middleware";
-import { applyToClassService } from "../services/apply.service";
+import {
+  applyToClassService,
+  cancelApplyService,
+  approveApplyService,
+} from "../services/apply.service";
+import { DI } from "../mikro-orm.config";
+import { Apply } from "../entities/Apply";
+import { applyToInstantClassService } from "../services/apply.service";
 
+// 즉시 승인 신청 (유저)
+export const applyToInstantClass = async (req: AuthRequest, res: Response) => {
+  const classId = Number(req.params.id);
+  const userId = req.user?.id!;
+
+  try {
+    const result = await applyToInstantClassService(classId, userId);
+    return res.status(result.status).json({ message: result.message });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
+// 신청 (유저)
 export const applyToClass = async (req: AuthRequest, res: Response) => {
   const classId = Number(req.params.id);
   const userId = req.user?.id!;
 
   try {
     const result = await applyToClassService(classId, userId);
-    res.status(result.status).json({ message: result.message });
+    return res.status(result.status).json({ message: result.message });
   } catch (error) {
-    res.status(500).json({ message: "Internal Server Error" });
+    console.error(error);
+    return res.status(500).json({ message: "Internal Server Error" });
   }
 };
 
+// 내 신청 내역 조회 (유저)
 export const getMyClassApply = async (req: AuthRequest, res: Response) => {
   if (!req.user) {
     return res.status(401).json({ message: "로그인이 필요합니다." });
   }
-
   try {
     const appl = await DI.em.find(
       Apply,
       { user: req.user.id },
       { populate: ["class"] }
     );
-
     return res.json(appl);
   } catch (err) {
     console.error(err);
     return res.status(500).json({ message: "신청 내역 조회 중 오류 발생" });
+  }
+};
+
+// 신청 승인 (관리자)
+export const approveApply = async (req: AuthRequest, res: Response) => {
+  const applyId = Number(req.params.id);
+  try {
+    const result = await approveApplyService(applyId);
+    return res.status(result.status).json({ message: result.message });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
+// 신청 취소 (유저 or 관리자)
+export const cancelApply = async (req: AuthRequest, res: Response) => {
+  const applyId = Number(req.params.id);
+  const isAdmin = req.user?.role === "admin";
+
+  try {
+    if (!isAdmin) {
+      // 유저가 본인 신청만 취소 가능
+      const apply = await DI.em.findOne(
+        Apply,
+        { id: applyId },
+        { populate: ["user"] }
+      );
+      if (!apply)
+        return res.status(404).json({ message: "신청을 찾을 수 없습니다." });
+      if (apply.user.id !== req.user?.id) {
+        return res
+          .status(403)
+          .json({ message: "본인의 신청만 취소할 수 있습니다." });
+      }
+    }
+
+    const result = await cancelApplyService(applyId, isAdmin);
+    return res.status(result.status).json({ message: result.message });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: "Internal Server Error" });
   }
 };
