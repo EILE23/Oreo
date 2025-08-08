@@ -1,2 +1,4 @@
 # Oreo
-OreoNodeProject
+
+npm i 이후 
+test는 npm test
