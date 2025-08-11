@@ -2,39 +2,42 @@
 
 ## 엔티티 관계도
 
-### 테이블 구조
-
-**User (사용자)**
-- id (Primary Key)
-- email (Unique Key)
-- password
-- name
-- isAdmin
-- createdAt
-- updatedAt
-
-**Class (클래스)**
-- id (Primary Key)
-- title
-- description
-- startAt
-- endAt
-- maxParticipants
-- hostId (Foreign Key → User.id)
-- seatsTaken
-- version
-
-**Apply (신청)**
-- id (Primary Key)
-- user_id (Foreign Key → User.id)
-- class_id (Foreign Key → Class.id)
-- status
-- createdAt
-
-### 관계
-- User(1) ↔ Apply(N) : 한 사용자는 여러 클래스에 신청 가능
-- Class(1) ↔ Apply(N) : 한 클래스는 여러 신청을 받음
-- User(1) ↔ Class(N) : 한 사용자(관리자)는 여러 클래스를 호스팅
+```mermaid
+erDiagram
+    USER {
+        int id
+        string email
+        string password
+        string name
+        boolean isAdmin
+        datetime createdAt
+        datetime updatedAt
+    }
+    
+    CLASS {
+        int id
+        string title
+        text description
+        datetime startAt
+        datetime endAt
+        int maxParticipants
+        int hostId
+        int seatsTaken
+        int version
+    }
+    
+    APPLY {
+        int id
+        int userId
+        int classId
+        string status
+        datetime createdAt
+    }
+    
+    USER ||--o{ APPLY : applies
+    CLASS ||--o{ APPLY : receives
+    USER ||--o{ CLASS : hosts
+```
 
 ## 테이블 상세 정보
 
