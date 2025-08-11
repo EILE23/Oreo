@@ -60,42 +60,41 @@ npm test
 
 ## ERD
 
-```mermaid
-erDiagram
-    USER ||--o{ APPLICATION : has
-    CLASS ||--o{ APPLICATION : receives
-    USER ||--o{ CLASS : hosts
+### 테이블 구조
 
-    USER {
-        number id PK
-        string email
-        string password
-        string name
-        boolean isAdmin
-        date createdAt
-        date updatedAt
-    }
+**User (사용자)**
+- id (Primary Key)
+- email (Unique Key)
+- password
+- name
+- isAdmin (기본값: false)
+- createdAt
+- updatedAt
 
-    CLASS {
-        number id PK
-        string title
-        string description
-        date startAt
-        date endAt
-        number maxParticipants
-        number hostId FK
-        number seatsTaken
-        number version
-    }
+**Class (클래스)**
+- id (Primary Key)
+- title
+- description
+- startAt
+- endAt
+- maxParticipants
+- hostId (Foreign Key → User.id)
+- seatsTaken (기본값: 0)
+- version (Optimistic Lock, 기본값: 1)
 
-    APPLICATION {
-        number id PK
-        number userId FK
-        number classId FK
-        string status
-        date createdAt
-    }
-```
+**Apply (신청)**
+- id (Primary Key)
+- user_id (Foreign Key → User.id)
+- class_id (Foreign Key → Class.id)
+- status (PENDING/APPROVED/REJECTED)
+- createdAt
+
+### 관계
+- User(1) ↔ Apply(N) : 한 사용자는 여러 클래스에 신청 가능
+- Class(1) ↔ Apply(N) : 한 클래스는 여러 신청을 받음
+- User(1) ↔ Class(N) : 한 사용자(관리자)는 여러 클래스를 호스팅
+
+자세한 ERD는 [ERD.md](ERD.md) 파일을 참고하세요.
 
 ## 기능 흐름도
 
