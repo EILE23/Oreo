@@ -34,9 +34,9 @@ erDiagram
         createdAt datetime
     }
     
-    User ||--o{ Apply : applies
-    Class ||--o{ Apply : has
-    User ||--o{ Class : hosts
+    User ||--o{ Apply : "applies to"
+    Class ||--o{ Apply : "receives"
+    User ||--o{ Class : "hosts"
 ```
 
 ## 테이블 상세 정보
