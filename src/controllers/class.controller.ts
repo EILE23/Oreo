@@ -13,10 +13,16 @@ export const createClass = async (req: AuthRequest, res: Response) => {
   try {
     // 관리자 권한 체크
     if (!req.user?.isAdmin) {
-      return res.status(403).json({ message: "관리자만 접근 가능합니다." });
+      return res.status(403).json({ message: "관리자 권한이 필요합니다." });
     }
 
     const { title, description, startAt, endAt, maxParticipants } = req.body;
+    
+    // 필수 필드 검증
+    if (!title || !description || !startAt || !endAt || maxParticipants === undefined) {
+      return res.status(400).json({ message: "모든 필드를 입력해주세요." });
+    }
+
     const result = await createClassService({
       title,
       description,
@@ -97,6 +103,12 @@ export const getClasses = async (req: Request, res: Response) => {
 export const getClassById = async (req: Request, res: Response) => {
   try {
     const classId = Number(req.params.id);
+    
+    // ID 형식 검증
+    if (isNaN(classId)) {
+      return res.status(400).json({ message: "잘못된 클래스 ID 형식입니다." });
+    }
+    
     const classEntity = await DI.em.findOne(Class, { id: classId });
     
     if (!classEntity) {

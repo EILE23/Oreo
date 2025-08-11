@@ -16,9 +16,16 @@ export const initAuthService = async () => {
 
 export const register = async (req: Request, res: Response) => {
   const { email, password, name } = req.body;
+  
+  if (!email || !password || !name) {
+    return res.status(400).json({ message: "이메일, 비밀번호, 이름은 필수 항목입니다." });
+  }
+  
   try {
     const user = await authService.register(email, password, name);
-    res.status(201).json(user);
+    // 비밀번호 제외하고 응답
+    const { password: _, ...userWithoutPassword } = user;
+    res.status(201).json(userWithoutPassword);
   } catch (err: any) {
     res.status(400).json({ message: err.message });
   }
@@ -26,9 +33,19 @@ export const register = async (req: Request, res: Response) => {
 
 export const login = async (req: Request, res: Response) => {
   const { email, password } = req.body;
+  
+  if (!email || !password) {
+    return res.status(400).json({ message: "이메일과 비밀번호는 필수 항목입니다." });
+  }
+  
   try {
     const result = await authService.login(email, password);
-    res.json(result);
+    // 응답에서 user 객체의 password 제거
+    const { password: _, ...userWithoutPassword } = result.user;
+    res.json({
+      token: result.token,
+      user: userWithoutPassword
+    });
   } catch (err: any) {
     res.status(401).json({ message: err.message });
   }

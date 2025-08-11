@@ -17,11 +17,23 @@ export type ClassUpdateDto = Partial<ClassCreateDto>;
 export async function createClassService(dto: ClassCreateDto) {
   const em = DI.em.fork();
 
+  // 날짜 검증
+  const startAt = new Date(dto.startAt);
+  const endAt = new Date(dto.endAt);
+  
+  if (isNaN(startAt.getTime())) {
+    return { status: 400, message: "시작일 형식이 잘못되었습니다." };
+  }
+  
+  if (isNaN(endAt.getTime())) {
+    return { status: 400, message: "종료일 형식이 잘못되었습니다." };
+  }
+
   const newClass = em.create(Class, {
     title: dto.title,
     description: dto.description,
-    startAt: new Date(dto.startAt),
-    endAt: new Date(dto.endAt),
+    startAt: startAt,
+    endAt: endAt,
     maxParticipants: Number(dto.maxParticipants),
     hostId: dto.hostId,
     seatsTaken: 0,
@@ -38,10 +50,25 @@ export async function updateClassService(id: number, dto: ClassUpdateDto) {
   const cls = await em.findOne(Class, { id });
   if (!cls) return { status: 404, message: "클래스를 찾을 수 없습니다." };
 
+  // 날짜 검증
+  if (dto.startAt) {
+    const startAt = new Date(dto.startAt);
+    if (isNaN(startAt.getTime())) {
+      return { status: 400, message: "시작일 형식이 잘못되었습니다." };
+    }
+    cls.startAt = startAt;
+  }
+
+  if (dto.endAt) {
+    const endAt = new Date(dto.endAt);
+    if (isNaN(endAt.getTime())) {
+      return { status: 400, message: "종료일 형식이 잘못되었습니다." };
+    }
+    cls.endAt = endAt;
+  }
+
   cls.title = dto.title ?? cls.title;
   cls.description = dto.description ?? cls.description;
-  cls.startAt = dto.startAt ? new Date(dto.startAt) : cls.startAt;
-  cls.endAt = dto.endAt ? new Date(dto.endAt) : cls.endAt;
   cls.maxParticipants = dto.maxParticipants ?? cls.maxParticipants;
 
   await em.flush();
