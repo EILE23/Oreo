@@ -15,6 +15,7 @@ export enum ApplyStatus {
 }
 
 @Entity()
+@Unique({ properties: ['class', 'user'] })
 export class Apply {
   @PrimaryKey()
   id!: number;

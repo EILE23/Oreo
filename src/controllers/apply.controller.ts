@@ -78,7 +78,7 @@ export const approveApply = async (req: AuthRequest, res: Response) => {
 // 신청 취소 (유저 or 관리자)
 export const cancelApply = async (req: AuthRequest, res: Response) => {
   const applyId = Number(req.params.id);
-  const isAdmin = req.user?.role === "admin";
+  const isAdmin = req.user?.isAdmin;
 
   try {
     if (!isAdmin) {

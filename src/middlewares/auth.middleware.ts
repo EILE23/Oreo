@@ -8,7 +8,7 @@ const JWT_SECRET = process.env.JWT_SECRET || "oreoASDFASDFZXCVZCVX";
 
 // 확장된 Request 타입 정의: req.user 사용을 위해
 export interface AuthRequest extends Request {
-  user?: Pick<User, "id" | "role" | "name" | "email">;
+  user?: Pick<User, "id" | "isAdmin" | "name" | "email">;
 }
 
 // JWT 인증 미들웨어 함수 정의
@@ -32,7 +32,7 @@ export const authenticate = (
     // 토큰 검증
     const decoded = jwt.verify(token, JWT_SECRET) as Pick<
       User,
-      "id" | "role" | "name" | "email"
+      "id" | "isAdmin" | "name" | "email"
     >;
 
     req.user = decoded;

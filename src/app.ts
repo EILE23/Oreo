@@ -3,8 +3,10 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+import swaggerUi from "swagger-ui-express";
 import { MikroORM } from "@mikro-orm/core";
 import mikroConfig, { DI } from "./mikro-orm.config";
+import { swaggerSpec } from "./config/swagger";
 import authRoutes from "./routes/auth.routes";
 import classRoutes from "./routes/class.routes";
 import applyRoutes from "./routes/apply.routes";
@@ -18,7 +20,15 @@ app.use(express.json());
 
 app.get("/", (_, res) => res.send(" Oreo API Ready"));
 
-app.use("/auth", authRoutes);
+// Swagger UI 설정
+app.use("/api", swaggerUi.serve);
+app.get("/api", swaggerUi.setup(swaggerSpec, {
+  customSiteTitle: "M클래스 신청 API",
+  customfavIcon: "/favicon.ico",
+  customCss: ".swagger-ui .topbar { display: none }",
+}));
+
+app.use("/api/users", authRoutes);
 app.use("/api", classRoutes);
 app.use("/api", applyRoutes);
 

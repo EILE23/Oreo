@@ -10,7 +10,7 @@ export const authorizeAdmin = (
     return res.status(401).json({ message: "인증이 필요합니다." });
   }
 
-  if (req.user.role !== "admin") {
+  if (!req.user.isAdmin) {
     return res.status(403).json({ message: "관리자 권한이 필요합니다." });
   }
 

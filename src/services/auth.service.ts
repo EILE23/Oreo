@@ -18,7 +18,7 @@ export class AuthService {
       email,
       password: hashed,
       name,
-      role: "user",
+      isAdmin: false,
       createdAt: new Date(),
       updatedAt: new Date(),
     });
@@ -37,7 +37,7 @@ export class AuthService {
     const token = jwt.sign(
       {
         id: user.id,
-        role: user.role,
+        isAdmin: user.isAdmin,
         name: user.name,
         email: user.email,
       },

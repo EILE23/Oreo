@@ -38,7 +38,7 @@ describe("클래스 신청/승인 API", () => {
       email: "user@example.com",
       password: "hashedpw",
       name: "테스트유저",
-      role: "user",
+      isAdmin: false,
       createdAt: new Date(),
       updatedAt: new Date(),
     });
@@ -47,7 +47,7 @@ describe("클래스 신청/승인 API", () => {
       email: "admin@example.com",
       password: "hashedpw",
       name: "관리자",
-      role: "admin",
+      isAdmin: true,
       createdAt: new Date(),
       updatedAt: new Date(),
     });
@@ -57,7 +57,7 @@ describe("클래스 신청/승인 API", () => {
     userToken = jwt.sign(
       {
         id: testUser.id,
-        role: testUser.role,
+        isAdmin: testUser.isAdmin,
         name: testUser.name,
         email: testUser.email,
       },
@@ -66,7 +66,7 @@ describe("클래스 신청/승인 API", () => {
     adminToken = jwt.sign(
       {
         id: adminUser.id,
-        role: adminUser.role,
+        isAdmin: adminUser.isAdmin,
         name: adminUser.name,
         email: adminUser.email,
       },
@@ -77,9 +77,10 @@ describe("클래스 신청/승인 API", () => {
     testClass = em.create(Class, {
       title: "테스트 강의",
       description: "설명",
-      startDate: new Date(),
-      endDate: new Date(),
-      maxCapacity: 2,
+      startAt: new Date(),
+      endAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 내일로 설정 (마감시간 지나지 않게)
+      maxParticipants: 2,
+      hostId: adminUser.id,
       seatsTaken: 0,
       version: 1,
     });
@@ -96,7 +97,7 @@ describe("클래스 신청/승인 API", () => {
 
   it("유저가 신청하면 PENDING 상태로 생성", async () => {
     const res = await request(app)
-      .post(`/api/classes/${testClass.id}/apply`)
+      .post(`/api/mclasses/${testClass.id}/apply`)
       .set("Authorization", `Bearer ${userToken}`);
 
     expect(res.statusCode).toBe(201);
@@ -105,16 +106,18 @@ describe("클래스 신청/승인 API", () => {
     const em = testOrm.em.fork();
     const apply = await em.findOneOrFail(Apply, { user: testUser });
     expect(apply.status).toBe(ApplyStatus.PENDING);
-    expect(testClass.seatsTaken).toBe(0);
+    // 이제 신청 시 바로 자리를 차지함
+    await em.refresh(testClass);
+    expect(testClass.seatsTaken).toBe(1);
   });
 
   it("중복 신청 방지", async () => {
     await request(app)
-      .post(`/api/classes/${testClass.id}/apply`)
+      .post(`/api/mclasses/${testClass.id}/apply`)
       .set("Authorization", `Bearer ${userToken}`);
 
     const res = await request(app)
-      .post(`/api/classes/${testClass.id}/apply`)
+      .post(`/api/mclasses/${testClass.id}/apply`)
       .set("Authorization", `Bearer ${userToken}`);
 
     expect(res.statusCode).toBe(409);
@@ -126,7 +129,7 @@ describe("클래스 신청/승인 API", () => {
 
     // 먼저 유저 신청
     await request(app)
-      .post(`/api/classes/${testClass.id}/apply`)
+      .post(`/api/mclasses/${testClass.id}/apply`)
       .set("Authorization", `Bearer ${userToken}`);
 
     const apply = await em.findOneOrFail(Apply, { user: testUser });
@@ -139,54 +142,50 @@ describe("클래스 신청/승인 API", () => {
     expect(res.statusCode).toBe(200);
     expect(res.body.message).toBe("승인 완료");
 
+    // 신청 시 이미 자리를 차지했으므로 동일
     await em.refresh(testClass);
     expect(testClass.seatsTaken).toBe(1);
   });
 
-  it("승인 시 정원 초과 방지", async () => {
+  it("신청 시 정원 초과 방지", async () => {
     const em = testOrm.em.fork();
-    await em.nativeUpdate(Class, { id: testClass.id }, { maxCapacity: 1 });
+    await em.nativeUpdate(Class, { id: testClass.id }, { maxParticipants: 1 });
 
-    // 첫 유저 신청 & 승인
-    const user1 = testUser;
-    await request(app)
-      .post(`/api/classes/${testClass.id}/apply`)
+    // 첫 유저 신청 (성공)
+    const res1 = await request(app)
+      .post(`/api/mclasses/${testClass.id}/apply`)
       .set("Authorization", `Bearer ${userToken}`);
-    const apply1 = await em.findOneOrFail(Apply, { user: user1 });
-    await request(app)
-      .post(`/api/applications/${apply1.id}/approve`)
-      .set("Authorization", `Bearer ${adminToken}`);
+    expect(res1.statusCode).toBe(201);
 
-    // 두 번째 유저 생성 및 신청
+    // 두 번째 유저 생성 및 신청 시도 (실패해야 함)
     const user2 = em.create(User, {
       email: "u2@example.com",
       password: "pw",
       name: "유저2",
-      role: "user",
+      isAdmin: false,
       createdAt: new Date(),
       updatedAt: new Date(),
     });
     await em.persistAndFlush(user2);
 
-    const token2 = jwt.sign({ id: user2.id, role: user2.role }, JWT_SECRET);
+    const token2 = jwt.sign({ id: user2.id, isAdmin: user2.isAdmin, name: user2.name, email: user2.email }, JWT_SECRET);
 
-    await request(app)
-      .post(`/api/classes/${testClass.id}/apply`)
-      .set("Authorization", `Bearer ${token2}`);
-    const apply2 = await em.findOneOrFail(Apply, { user: user2 });
-
-    // 승인 시도 → 실패
+    // 두 번째 유저 신청 시도 → 정원 초과로 실패해야 함
     const res2 = await request(app)
-      .post(`/api/applications/${apply2.id}/approve`)
-      .set("Authorization", `Bearer ${adminToken}`);
+      .post(`/api/mclasses/${testClass.id}/apply`)
+      .set("Authorization", `Bearer ${token2}`);
 
     expect(res2.statusCode).toBe(400);
     expect(res2.body.message).toBe("정원이 가득 찼습니다.");
+
+    // Apply가 생성되지 않았는지 확인
+    const apply2 = await em.findOne(Apply, { user: user2 });
+    expect(apply2).toBeNull();
   });
 
   it("없는 강의에 신청하면 404", async () => {
     const res = await request(app)
-      .post(`/api/classes/999999/apply`)
+      .post(`/api/mclasses/999999/apply`)
       .set("Authorization", `Bearer ${userToken}`);
 
     expect(res.statusCode).toBe(404);
@@ -194,7 +193,7 @@ describe("클래스 신청/승인 API", () => {
   });
 
   it("토큰 없으면 401", async () => {
-    const res = await request(app).post(`/api/classes/${testClass.id}/apply`);
+    const res = await request(app).post(`/api/mclasses/${testClass.id}/apply`);
     expect(res.statusCode).toBe(401);
     expect(res.body.message).toBe("인증 정보가 없습니다.");
   });
@@ -219,7 +218,7 @@ describe("클래스 신청/승인 API", () => {
   it("비관리자가 승인 시도하면 403", async () => {
     const em = testOrm.em.fork();
     await request(app)
-      .post(`/api/classes/${testClass.id}/apply`)
+      .post(`/api/mclasses/${testClass.id}/apply`)
       .set("Authorization", `Bearer ${userToken}`);
     const apply = await em.findOneOrFail(Apply, { user: testUser });
     const res = await request(app)
@@ -240,7 +239,7 @@ describe("클래스 신청/승인 API", () => {
 
   it("즉시신청 정원 초과 방지", async () => {
     const em = testOrm.em.fork();
-    await em.nativeUpdate(Class, { id: testClass.id }, { maxCapacity: 1 });
+    await em.nativeUpdate(Class, { id: testClass.id }, { maxParticipants: 1 });
     const res1 = await request(app)
       .post(`/api/classes/${testClass.id}/apply/instant`)
       .set("Authorization", `Bearer ${userToken}`);
@@ -249,7 +248,7 @@ describe("클래스 신청/승인 API", () => {
       email: "x@example.com",
       password: "pw",
       name: "x",
-      role: "user",
+      isAdmin: false,
       createdAt: new Date(),
       updatedAt: new Date(),
     });
@@ -257,7 +256,7 @@ describe("클래스 신청/승인 API", () => {
     const token = jwt.sign(
       {
         id: another.id,
-        role: another.role,
+        isAdmin: another.isAdmin,
         name: another.name,
         email: another.email,
       },

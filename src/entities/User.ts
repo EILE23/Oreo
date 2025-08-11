@@ -14,8 +14,8 @@ export class User {
   @Property()
   name!: string;
 
-  @Property({ default: "user" })
-  role: "user" | "admin" = "user";
+  @Property({ default: false })
+  isAdmin: boolean = false;
 
   @Property()
   createdAt: Date = new Date();

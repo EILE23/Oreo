@@ -15,11 +15,17 @@ export async function applyToClassService(classId: number, userId: number) {
       const cls = await em.findOne(Class, { id: classId });
       if (!cls) return { status: 404, message: "클래스를 찾을 수 없습니다." };
 
+      // 마감 시간 체크
+      const now = new Date();
+      if (now > cls.endAt) {
+        return { status: 400, message: "마감 시간이 지났습니다." };
+      }
+
       const user = await em.findOneOrFail(User, { id: userId });
 
-      // if (cls.seatsTaken >= cls.maxCapacity) {
-      //   return { status: 400, message: "정원이 가득 찼습니다." };
-      // }
+      if (cls.seatsTaken >= cls.maxParticipants) {
+        return { status: 400, message: "정원이 가득 찼습니다." };
+      }
 
       // 중복 신청 방지
       const exists = await em.findOne(Apply, { class: cls, user });
@@ -27,13 +33,16 @@ export async function applyToClassService(classId: number, userId: number) {
         return { status: 409, message: "이미 신청한 클래스입니다." };
       }
 
-      // 신청 생성 (기본 상태: PENDING)
+      // 신청 생성 (기본 상태: PENDING) - 신청 시 바로 자리 차지
       const apply = new Apply();
       apply.class = cls;
       apply.user = user;
       apply.status = ApplyStatus.PENDING;
+      
+      // 신청과 동시에 자리 차지 (더 안전한 동시성 처리)
+      cls.seatsTaken += 1;
 
-      await em.persistAndFlush(apply);
+      await em.persistAndFlush([apply, cls]);
       return { status: 201, message: "신청이 완료되었습니다." };
     });
   } catch (e: any) {
@@ -57,7 +66,8 @@ export async function cancelApplyService(applyId: number, byAdmin = false) {
     );
     if (!apply) return { status: 404, message: "신청을 찾을 수 없습니다." };
 
-    if (apply.status === ApplyStatus.APPROVED) {
+    // PENDING이든 APPROVED든 자리를 차지하고 있으므로 반환
+    if (apply.status === ApplyStatus.APPROVED || apply.status === ApplyStatus.PENDING) {
       apply.class.seatsTaken -= 1;
       if (apply.class.seatsTaken < 0) apply.class.seatsTaken = 0;
     }
@@ -81,14 +91,8 @@ export async function approveApplyService(applyId: number) {
       return { status: 400, message: "이미 승인된 신청입니다." };
     }
 
-    const cls = apply.class;
-
-    if (cls.seatsTaken >= cls.maxCapacity) {
-      return { status: 400, message: "정원이 가득 찼습니다." };
-    }
-
+    // 이미 신청 시 자리를 차지했으므로, 상태만 변경
     apply.status = ApplyStatus.APPROVED;
-    cls.seatsTaken += 1;
 
     await em.flush();
 
@@ -105,7 +109,13 @@ export async function applyToInstantClassService(
     const cls = await em.findOne(Class, { id: classId });
     if (!cls) return { status: 404, message: "클래스를 찾을 수 없습니다." };
 
-    if (cls.seatsTaken >= cls.maxCapacity) {
+    // 마감 시간 체크
+    const now = new Date();
+    if (now > cls.endAt) {
+      return { status: 400, message: "마감 시간이 지났습니다." };
+    }
+
+    if (cls.seatsTaken >= cls.maxParticipants) {
       return { status: 400, message: "정원이 가득 찼습니다." };
     }
 

@@ -5,9 +5,10 @@ import { Class } from "../entities/Class";
 export interface ClassCreateDto {
   title: string;
   description: string;
-  startDate: string | Date;
-  endDate: string | Date;
-  maxCapacity: number;
+  startAt: string | Date;
+  endAt: string | Date;
+  maxParticipants: number;
+  hostId: number;
 }
 
 export type ClassUpdateDto = Partial<ClassCreateDto>;
@@ -19,9 +20,10 @@ export async function createClassService(dto: ClassCreateDto) {
   const newClass = em.create(Class, {
     title: dto.title,
     description: dto.description,
-    startDate: new Date(dto.startDate),
-    endDate: new Date(dto.endDate),
-    maxCapacity: Number(dto.maxCapacity),
+    startAt: new Date(dto.startAt),
+    endAt: new Date(dto.endAt),
+    maxParticipants: Number(dto.maxParticipants),
+    hostId: dto.hostId,
     seatsTaken: 0,
     version: 1,
   });
@@ -38,9 +40,9 @@ export async function updateClassService(id: number, dto: ClassUpdateDto) {
 
   cls.title = dto.title ?? cls.title;
   cls.description = dto.description ?? cls.description;
-  cls.startDate = dto.startDate ? new Date(dto.startDate) : cls.startDate;
-  cls.endDate = dto.endDate ? new Date(dto.endDate) : cls.endDate;
-  cls.maxCapacity = dto.maxCapacity ?? cls.maxCapacity;
+  cls.startAt = dto.startAt ? new Date(dto.startAt) : cls.startAt;
+  cls.endAt = dto.endAt ? new Date(dto.endAt) : cls.endAt;
+  cls.maxParticipants = dto.maxParticipants ?? cls.maxParticipants;
 
   await em.flush();
   return { status: 200, data: cls };

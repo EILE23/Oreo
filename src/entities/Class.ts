@@ -20,13 +20,16 @@ export class Class {
   description!: string;
 
   @Property()
-  startDate!: Date;
+  startAt!: Date;
 
   @Property()
-  endDate!: Date;
+  endAt!: Date;
 
   @Property()
-  maxCapacity!: number;
+  maxParticipants!: number;
+
+  @Property()
+  hostId!: number;
 
   // 현재까지 신청된 인원 수
   @Property({ default: 0 })
