@@ -6,37 +6,37 @@
 erDiagram
     User {
         int id PK
-        string email UK "unique, not null"
-        string password "not null"
-        string name "not null"
-        boolean isAdmin "default false"
-        datetime createdAt "default now()"
-        datetime updatedAt "auto update"
+        string email UK
+        string password
+        string name
+        boolean isAdmin
+        datetime createdAt
+        datetime updatedAt
     }
     
     Class {
         int id PK
-        string title "not null"
-        text description "not null"
-        datetime startAt "not null"
-        datetime endAt "not null"
-        int maxParticipants "not null"
-        int hostId "not null, FK to User.id"
-        int seatsTaken "default 0"
-        int version "optimistic lock, default 1"
+        string title
+        text description
+        datetime startAt
+        datetime endAt
+        int maxParticipants
+        int hostId FK
+        int seatsTaken
+        int version
     }
     
     Apply {
         int id PK
-        int class_id FK "not null"
-        int user_id FK "not null"
-        string status "PENDING/APPROVED/REJECTED, default PENDING"
-        datetime createdAt "default now()"
+        int class_id FK
+        int user_id FK
+        string status
+        datetime createdAt
     }
     
-    User ||--o{ Apply : "user applies to classes"
-    Class ||--o{ Apply : "class has applications"
-    User ||--o{ Class : "user hosts classes (hostId)"
+    User ||--o{ Apply : applies
+    Class ||--o{ Apply : has
+    User ||--o{ Class : hosts
 ```
 
 ## 테이블 상세 정보
