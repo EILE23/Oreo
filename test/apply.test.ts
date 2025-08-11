@@ -88,11 +88,15 @@ describe("클래스 신청/승인 API", () => {
   });
 
   afterAll(async () => {
-    const em = testOrm.em.fork();
-    await em.nativeDelete(Apply, {});
-    await em.nativeDelete(Class, {});
-    await em.nativeDelete(User, {});
-    await testOrm.close(true).catch(() => {});
+    try {
+      const em = testOrm.em.fork();
+      await em.nativeDelete(Apply, {});
+      await em.nativeDelete(Class, {});
+      await em.nativeDelete(User, {});
+      await testOrm.close(true);
+    } catch (error) {
+      console.log('Cleanup error:', error);
+    }
   });
 
   it("유저가 신청하면 PENDING 상태로 생성", async () => {

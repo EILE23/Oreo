@@ -1,25 +1,22 @@
 import { Response } from "express";
 import { AuthRequest } from "../middlewares/auth.middleware";
 import {
-  applyToClassService,
-  cancelApplyService,
-  approveApplyService,
+  apply as applyService,
+  cancel,
+  approve,
+  applyInstant as applyInstantService,
 } from "../services/apply.service";
 import { DI } from "../mikro-orm.config";
 import { Apply } from "../entities/Apply";
-import { applyToInstantClassService } from "../services/apply.service";
 
 // 즉시 승인 신청 (유저)
-export const applyToInstantClass = async (req: AuthRequest, res: Response) => {
+export const applyInstant = async (req: AuthRequest, res: Response) => {
   const classId = Number(req.params.id);
-
   if (Number.isNaN(classId))
     return res.status(400).json({ message: "잘못된 클래스 ID" });
 
-  const userId = req.user?.id!;
-
   try {
-    const result = await applyToInstantClassService(classId, userId);
+    const result = await applyInstantService(classId, req.user!.id);
     return res.status(result.status).json({ message: result.message });
   } catch (error) {
     console.error(error);
@@ -28,16 +25,13 @@ export const applyToInstantClass = async (req: AuthRequest, res: Response) => {
 };
 
 // 신청 (유저)
-export const applyToClass = async (req: AuthRequest, res: Response) => {
+export const apply = async (req: AuthRequest, res: Response) => {
   const classId = Number(req.params.id);
-
   if (Number.isNaN(classId))
     return res.status(400).json({ message: "잘못된 클래스 ID" });
 
-  const userId = req.user?.id!;
-
   try {
-    const result = await applyToClassService(classId, userId);
+    const result = await applyService(classId, req.user!.id);
     return res.status(result.status).json({ message: result.message });
   } catch (error) {
     console.error(error);
@@ -46,19 +40,16 @@ export const applyToClass = async (req: AuthRequest, res: Response) => {
 };
 
 // 내 신청 내역 조회 (유저)
-export const getMyClassApply = async (req: AuthRequest, res: Response) => {
-  if (!req.user) {
-    return res.status(401).json({ message: "로그인이 필요합니다." });
-  }
+export const getMyApplications = async (req: AuthRequest, res: Response) => {
   try {
-    const appl = await DI.em.find(
+    const applications = await DI.em.find(
       Apply,
-      { user: req.user.id },
+      { user: req.user!.id },
       { populate: ["class"] }
     );
-    return res.json(appl);
-  } catch (err) {
-    console.error(err);
+    return res.json(applications);
+  } catch (error) {
+    console.error(error);
     return res.status(500).json({ message: "신청 내역 조회 중 오류 발생" });
   }
 };
@@ -67,7 +58,7 @@ export const getMyClassApply = async (req: AuthRequest, res: Response) => {
 export const approveApply = async (req: AuthRequest, res: Response) => {
   const applyId = Number(req.params.id);
   try {
-    const result = await approveApplyService(applyId);
+    const result = await approve(applyId);
     return res.status(result.status).json({ message: result.message });
   } catch (error) {
     console.error(error);
@@ -97,7 +88,7 @@ export const cancelApply = async (req: AuthRequest, res: Response) => {
       }
     }
 
-    const result = await cancelApplyService(applyId, isAdmin);
+    const result = await cancel(applyId);
     return res.status(result.status).json({ message: result.message });
   } catch (error) {
     console.error(error);

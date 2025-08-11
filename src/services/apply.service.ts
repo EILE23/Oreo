@@ -9,7 +9,7 @@ import {
 } from "@mikro-orm/core";
 
 // 클래스 신청(승인제) pending 상태 관리자 승인 이후 approve
-export async function applyToClassService(classId: number, userId: number) {
+export async function apply(classId: number, userId: number) {
   try {
     return await DI.orm.em.transactional(async (em) => {
       const cls = await em.findOne(Class, { id: classId });
@@ -57,7 +57,7 @@ export async function applyToClassService(classId: number, userId: number) {
 }
 
 // 신청 취소
-export async function cancelApplyService(applyId: number, byAdmin = false) {
+export async function cancel(applyId: number) {
   return await DI.orm.em.transactional(async (em) => {
     const apply = await em.findOne(
       Apply,
@@ -78,8 +78,7 @@ export async function cancelApplyService(applyId: number, byAdmin = false) {
 }
 
 // 관리자 승인
-
-export async function approveApplyService(applyId: number) {
+export async function approve(applyId: number) {
   return await DI.orm.em.transactional(async (em) => {
     const apply = await em.findOne(
       Apply,
@@ -101,7 +100,7 @@ export async function approveApplyService(applyId: number) {
 }
 
 // 즉시 신청 바로 상태를 approve 상태로
-export async function applyToInstantClassService(
+export async function applyInstant(
   classId: number,
   userId: number
 ) {

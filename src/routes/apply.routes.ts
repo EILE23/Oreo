@@ -3,11 +3,11 @@ import { Router } from "express";
 import { authenticate } from "../middlewares/auth.middleware";
 import { authorizeAdmin } from "../middlewares/admin.middleware";
 import {
-  applyToClass,
-  getMyClassApply,
+  apply,
+  getMyApplications,
   cancelApply,
   approveApply,
-  applyToInstantClass,
+  applyInstant,
 } from "../controllers/apply.controller";
 import { lockByClassParam, lockByApplyId } from "../middlewares/lock";
 
@@ -66,7 +66,7 @@ const router = Router();
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
-router.post("/mclasses/:id/apply", authenticate, applyToClass);
+router.post("/mclasses/:id/apply", authenticate, apply);
 
 /**
  * @swagger
@@ -98,7 +98,7 @@ router.post("/mclasses/:id/apply", authenticate, applyToClass);
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
-router.get("/applications/me", authenticate, getMyClassApply);
+router.get("/applications/me", authenticate, getMyApplications);
 
 /**
  * @swagger
@@ -212,7 +212,7 @@ router.post(
   "/classes/:id/apply/instant",
   authenticate,
   lockByClassParam,
-  applyToInstantClass
+  applyInstant
 );
 
 /**
