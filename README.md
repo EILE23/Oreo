@@ -20,8 +20,25 @@ npm run build
 ```
 
 ### 4. 테스트 실행
+
+전체 테스트:
 ```bash
 npm test
+```
+
+파일별 테스트:
+```bash
+# 인증 테스트 (회원가입, 로그인, 보안)
+npm run test:a
+
+# 클래스 CRUD 테스트
+npm run test:b
+
+# 신청/승인 테스트  
+npm run test:c
+
+# 종합 테스트 (동시성, 예외처리, 엣지케이스)
+npm run test:d
 ```
 
 ## API 문서

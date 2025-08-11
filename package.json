@@ -7,7 +7,11 @@
     "dev": "ts-node-dev --respawn src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
-    "test": "jest --detectOpenHandles --forceExit"
+    "test": "jest --detectOpenHandles --forceExit",
+    "test:a": "jest test/auth.test.ts --detectOpenHandles --forceExit",
+    "test:b": "jest test/class.test.ts --detectOpenHandles --forceExit",
+    "test:c": "jest test/apply.test.ts --detectOpenHandles --forceExit",
+    "test:d": "jest test/comprehensive.test.ts --detectOpenHandles --forceExit"
   },
   "repository": {
     "type": "git",
