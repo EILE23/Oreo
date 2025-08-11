@@ -3,40 +3,16 @@
 ## 엔티티 관계도
 
 ```mermaid
-erDiagram
-    USER {
-        int id
-        string email
-        string password
-        string name
-        boolean isAdmin
-        datetime createdAt
-        datetime updatedAt
-    }
+graph TD
+    U[User<br/>사용자] --> A[Apply<br/>신청]
+    C[Class<br/>클래스] --> A
+    U --> C
     
-    CLASS {
-        int id
-        string title
-        text description
-        datetime startAt
-        datetime endAt
-        int maxParticipants
-        int hostId
-        int seatsTaken
-        int version
-    }
+    U -.-> UF["<b>User Fields:</b><br/>• id (PK)<br/>• email (UK)<br/>• password<br/>• name<br/>• isAdmin<br/>• createdAt<br/>• updatedAt"]
     
-    APPLY {
-        int id
-        int userId
-        int classId
-        string status
-        datetime createdAt
-    }
+    C -.-> CF["<b>Class Fields:</b><br/>• id (PK)<br/>• title<br/>• description<br/>• startAt<br/>• endAt<br/>• maxParticipants<br/>• hostId (FK)<br/>• seatsTaken<br/>• version"]
     
-    USER ||--o{ APPLY : applies
-    CLASS ||--o{ APPLY : receives
-    USER ||--o{ CLASS : hosts
+    A -.-> AF["<b>Apply Fields:</b><br/>• id (PK)<br/>• userId (FK)<br/>• classId (FK)<br/>• status<br/>• createdAt"]
 ```
 
 ## 테이블 상세 정보
