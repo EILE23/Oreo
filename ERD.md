@@ -5,33 +5,33 @@
 ```mermaid
 erDiagram
     User {
-        int id PK
-        string email UK
-        string password
-        string name
-        boolean isAdmin
-        datetime createdAt
-        datetime updatedAt
+        id int
+        email string
+        password string
+        name string
+        isAdmin boolean
+        createdAt datetime
+        updatedAt datetime
     }
     
     Class {
-        int id PK
-        string title
-        text description
-        datetime startAt
-        datetime endAt
-        int maxParticipants
-        int hostId FK
-        int seatsTaken
-        int version
+        id int
+        title string
+        description text
+        startAt datetime
+        endAt datetime
+        maxParticipants int
+        hostId int
+        seatsTaken int
+        version int
     }
     
     Apply {
-        int id PK
-        int class_id FK
-        int user_id FK
-        string status
-        datetime createdAt
+        id int
+        class_id int
+        user_id int
+        status string
+        createdAt datetime
     }
     
     User ||--o{ Apply : applies
